@@ -1,0 +1,67 @@
+# Personal Job Search Tool - config
+#
+# Edit wanted_titles / blocked_titles / keywords yourself - these are personal
+# to your search. Everything here is loaded as-is by jobsearch/config.py.
+
+# Titles you want to see. Case-insensitive substring match against the job title.
+wanted_titles:
+  - "Software Engineer"
+  - "Backend Engineer"
+  - "Python Developer"
+
+# If a title matches one of these, the job is dropped before it even reaches
+# the keyword check.
+blocked_titles:
+  - "Intern"
+  - "Sales"
+  - "Senior Staff"
+
+# A hit on any of these (title or description) shows the job even if the
+# title itself isn't in wanted_titles.
+keywords:
+  - "python"
+  - "fastapi"
+  - "sqlite"
+
+eligibility:
+  # Location/region phrases in a job posting treated as eligible for someone
+  # based in Palestine. Matched by the LLM extraction step, not string match.
+  eligible_regions:
+    - "Anywhere"
+    - "Remote"
+    - "Worldwide"
+    - "MENA"
+    - "Middle East"
+    - "Palestine"
+    - "EMEA"
+
+  # Timezone-only postings (no region named) treated as eligible if they
+  # overlap Palestine (GMT+2 winter / GMT+3 summer).
+  eligible_timezones:
+    - "GMT+2"
+    - "GMT+3"
+    - "UTC+2"
+    - "UTC+3"
+    - "EET"
+    - "EEST"
+
+  # Any of these present in the posting is a hard block, regardless of title
+  # or keyword matches.
+  blocked_requirements:
+    - "United States"
+    - "US work authorization"
+    - "US citizenship"
+    - "US presence required"
+    - "must be based in the US"
+
+llm:
+  provider: gemini # gemini | claude
+  model: gemini-flash
+  requests_per_minute: 10 # stay under Gemini free tier's 5-15 rpm
+  daily_quota_cap: 50 # set below your live AI Studio quota
+  corrections_file: corrections.jsonl
+  corrections_few_shot_count: 10
+
+storage:
+  db_path: "data/jobsearch.db"
+  job_retention_days: 7 # unstarred jobs deleted after this many days
