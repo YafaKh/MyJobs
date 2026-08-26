@@ -1,0 +1,70 @@
+name: Daily job fetch
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily - adjust to taste
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write # needed to push the updated DB to the data branch
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore DB from the data branch
+        run: |
+          mkdir -p data
+          git fetch origin data 2>/dev/null || true
+          if git show origin/data:data/jobsearch.db > data/jobsearch.db 2>/dev/null; then
+            echo "Restored existing DB from the data branch"
+          else
+            echo "No existing DB on the data branch yet - starting fresh"
+            rm -f data/jobsearch.db
+          fi
+
+      - name: Init DB schema
+        run: python -m jobsearch.cli init-db
+
+      - name: Seed open web feeds (idempotent - no-op after the first run)
+        run: python -m jobsearch.cli seed-feeds
+
+      - name: Fetch
+        run: python -m jobsearch.cli fetch
+
+      - name: Extract
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m jobsearch.cli extract
+
+      - name: Cleanup
+        run: python -m jobsearch.cli cleanup
+
+      - name: Commit DB to the data branch
+        run: |
+          cp data/jobsearch.db /tmp/jobsearch.db
+          rm -rf data # untracked on main (gitignored) - must be gone before switching to a branch that tracks it
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
+            git checkout -B data origin/data
+          else
+            git checkout --orphan data
+            git rm -rf . > /dev/null 2>&1 || true
+          fi
+          mkdir -p data
+          cp /tmp/jobsearch.db data/jobsearch.db
+          git add data/jobsearch.db
+          git diff --cached --quiet && echo "No DB changes to commit" || git commit -m "Update jobsearch.db"
+          git push origin data

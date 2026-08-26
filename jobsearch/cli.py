@@ -4,6 +4,7 @@ Usage:
     python -m jobsearch.cli show-config
     python -m jobsearch.cli init-db
     python -m jobsearch.cli add-source --name "Stripe" --url "https://boards.greenhouse.io/stripe"
+    python -m jobsearch.cli seed-feeds
     python -m jobsearch.cli list-sources
     python -m jobsearch.cli fetch
     python -m jobsearch.cli extract
@@ -25,6 +26,7 @@ from jobsearch.cleanup import cleanup_unstarred
 from jobsearch.config import load_config
 from jobsearch.db import connect, init_db
 from jobsearch.env import load_env
+from jobsearch.feeds import FEEDS
 from jobsearch.fetch import run as fetch_run
 
 
@@ -56,6 +58,24 @@ def cmd_add_source(args: argparse.Namespace) -> None:
     conn.commit()
     conn.close()
     print(f"Added '{args.name}' -> detected ATS: {ats_type} (identifier: {identifier})")
+
+
+def cmd_seed_feeds(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    conn = connect(config["storage"]["db_path"])
+    added = 0
+    for feed in FEEDS:
+        existing = conn.execute("SELECT id FROM sources WHERE name = ?", (feed["name"],)).fetchone()
+        if existing:
+            continue
+        conn.execute(
+            "INSERT INTO sources (name, careers_url, source_kind, ats_type) VALUES (?, ?, 'openweb', ?)",
+            (feed["name"], feed["url"], feed["key"]),
+        )
+        added += 1
+    conn.commit()
+    conn.close()
+    print(f"Added {added} new open web feed(s) ({len(FEEDS) - added} already present)")
 
 
 def cmd_list_sources(args: argparse.Namespace) -> None:
@@ -140,10 +160,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_source_cmd.add_argument("--url", required=True, help="Careers page URL")
     add_source_cmd.set_defaults(func=cmd_add_source)
 
-    list_sources_cmd = subparsers.add_parser("list-sources", help="List saved sources and their health")
+    seed_feeds_cmd = subparsers.add_parser("seed-feeds", help="Register the fixed open web feeds as sources")
+    seed_feeds_cmd.set_defaults(func=cmd_seed_feeds)
+
+    list_sources_cmd = subparsers.add_parser("list-sources", help="List all sources and their health")
     list_sources_cmd.set_defaults(func=cmd_list_sources)
 
-    fetch_cmd = subparsers.add_parser("fetch", help="Fetch jobs for all active saved sources")
+    fetch_cmd = subparsers.add_parser("fetch", help="Fetch jobs for all active sources (saved + open web)")
     fetch_cmd.set_defaults(func=cmd_fetch)
 
     extract_cmd = subparsers.add_parser("extract", help="Run LLM extraction on unextracted jobs")

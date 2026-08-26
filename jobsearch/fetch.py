@@ -11,6 +11,7 @@ import sqlite3
 import httpx
 
 from jobsearch.ats import ashby, detect, generic_html, greenhouse, lever, recruitee, smartrecruiters, workable
+from jobsearch.feeds import FEED_ADAPTERS
 
 ADAPTERS = {
     "greenhouse": greenhouse.fetch_jobs,
@@ -58,24 +59,29 @@ def fetch_source(conn: sqlite3.Connection, client: httpx.Client, source: dict, s
     ats_type = source["ats_type"]
     identifier = source["ats_identifier"]
 
-    if not ats_type:
-        ats_type, identifier = detect.detect_ats(source["careers_url"], client)
-        conn.execute(
-            "UPDATE sources SET ats_type = ?, ats_identifier = ? WHERE id = ?",
-            (ats_type, identifier, source["id"]),
-        )
-
-    if ats_type == "generic_html":
-        raw_jobs = generic_html.fetch_jobs(
-            source["careers_url"],
-            source["name"],
-            client,
-            user_agent=scraping_config["user_agent"],
-            max_detail_pages=scraping_config["generic_html_max_detail_pages"],
-            request_delay_seconds=scraping_config["generic_html_request_delay_seconds"],
-        )
+    if source["source_kind"] == "openweb":
+        # Open web feeds are pre-registered by `seed-feeds` with ats_type set
+        # to the feed key - no detection needed, no per-job company name to pass.
+        raw_jobs = FEED_ADAPTERS[ats_type](client)
     else:
-        raw_jobs = ADAPTERS[ats_type](identifier, source["name"], client)
+        if not ats_type:
+            ats_type, identifier = detect.detect_ats(source["careers_url"], client)
+            conn.execute(
+                "UPDATE sources SET ats_type = ?, ats_identifier = ? WHERE id = ?",
+                (ats_type, identifier, source["id"]),
+            )
+
+        if ats_type == "generic_html":
+            raw_jobs = generic_html.fetch_jobs(
+                source["careers_url"],
+                source["name"],
+                client,
+                user_agent=scraping_config["user_agent"],
+                max_detail_pages=scraping_config["generic_html_max_detail_pages"],
+                request_delay_seconds=scraping_config["generic_html_request_delay_seconds"],
+            )
+        else:
+            raw_jobs = ADAPTERS[ats_type](identifier, source["name"], client)
 
     for raw in raw_jobs:
         jhash = job_hash_for(ats_type, raw.get("external_id"), raw["url"])
