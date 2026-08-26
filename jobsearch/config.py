@@ -4,7 +4,15 @@ from pathlib import Path
 
 import yaml
 
-REQUIRED_KEYS = ["wanted_titles", "blocked_titles", "keywords", "eligibility", "llm", "storage"]
+REQUIRED_KEYS = [
+    "wanted_titles",
+    "blocked_titles",
+    "keywords",
+    "eligibility",
+    "llm",
+    "storage",
+    "scraping",
+]
 REQUIRED_ELIGIBILITY_KEYS = ["eligible_regions", "eligible_timezones", "blocked_requirements"]
 
 

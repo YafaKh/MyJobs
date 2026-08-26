@@ -65,3 +65,11 @@ llm:
 storage:
   db_path: "data/jobsearch.db"
   job_retention_days: 7 # unstarred jobs deleted after this many days
+
+scraping:
+  # Sent on every request so a site admin can identify and contact the bot.
+  user_agent: "MyJobsSearchBot/1.0 (+personal, non-commercial job search tool)"
+  # Generic HTML fallback only: pause between individual job-detail page requests.
+  generic_html_request_delay_seconds: 1
+  # Generic HTML fallback only: cap on job-detail pages fetched per source per run.
+  generic_html_max_detail_pages: 40
