@@ -71,3 +71,10 @@ CREATE TABLE IF NOT EXISTS corrections (
     right_value   TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- One row per calendar day, counting LLM extraction calls made that day so a
+-- run can stop before blowing the free-tier daily cap.
+CREATE TABLE IF NOT EXISTS llm_usage (
+    usage_date  TEXT PRIMARY KEY,
+    calls_made  INTEGER NOT NULL DEFAULT 0
+);

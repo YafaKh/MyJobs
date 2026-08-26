@@ -56,11 +56,13 @@ eligibility:
 
 llm:
   provider: gemini # gemini | claude
-  model: gemini-flash
+  # "gemini-flash-latest" is Google's own rolling alias for the current free-tier
+  # Flash model, so this doesn't need updating as Google ships new versions.
+  model: gemini-flash-latest
+  claude_model: claude-haiku-4-5-20251001 # used only when provider: claude
   requests_per_minute: 10 # stay under Gemini free tier's 5-15 rpm
   daily_quota_cap: 50 # set below your live AI Studio quota
-  corrections_file: corrections.jsonl
-  corrections_few_shot_count: 10
+  corrections_few_shot_count: 10 # last N rows from the `corrections` table pasted into the prompt
 
 storage:
   db_path: "data/jobsearch.db"

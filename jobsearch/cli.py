@@ -6,16 +6,22 @@ Usage:
     python -m jobsearch.cli add-source --name "Stripe" --url "https://boards.greenhouse.io/stripe"
     python -m jobsearch.cli list-sources
     python -m jobsearch.cli fetch
+    python -m jobsearch.cli extract
+    python -m jobsearch.cli quota
 """
 
 import argparse
 import json
+from datetime import date
 
 import httpx
 
+from jobsearch import quota as quota_module
+from jobsearch.agent import run as agent_run
 from jobsearch.ats.detect import detect_ats
 from jobsearch.config import load_config
 from jobsearch.db import connect, init_db
+from jobsearch.env import load_env
 from jobsearch.fetch import run as fetch_run
 
 
@@ -78,6 +84,24 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         conn.close()
 
 
+def cmd_extract(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    conn = connect(config["storage"]["db_path"])
+    try:
+        agent_run(conn, config)
+    finally:
+        conn.close()
+
+
+def cmd_quota(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    conn = connect(config["storage"]["db_path"])
+    today = date.today().isoformat()
+    used = quota_module.get_today_usage(conn, today)
+    conn.close()
+    print(f"{used}/{config['llm']['daily_quota_cap']} LLM calls used today ({today})")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jobsearch", description="Personal job search tool")
     parser.add_argument(
@@ -105,10 +129,17 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_cmd = subparsers.add_parser("fetch", help="Fetch jobs for all active saved sources")
     fetch_cmd.set_defaults(func=cmd_fetch)
 
+    extract_cmd = subparsers.add_parser("extract", help="Run LLM extraction on unextracted jobs")
+    extract_cmd.set_defaults(func=cmd_extract)
+
+    quota_cmd = subparsers.add_parser("quota", help="Show today's LLM call usage")
+    quota_cmd.set_defaults(func=cmd_quota)
+
     return parser
 
 
 def main() -> None:
+    load_env()
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)
