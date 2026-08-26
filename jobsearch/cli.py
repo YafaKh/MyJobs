@@ -8,6 +8,8 @@ Usage:
     python -m jobsearch.cli fetch
     python -m jobsearch.cli extract
     python -m jobsearch.cli quota
+    python -m jobsearch.cli cleanup
+    python -m jobsearch.cli serve
 """
 
 import argparse
@@ -19,6 +21,7 @@ import httpx
 from jobsearch import quota as quota_module
 from jobsearch.agent import run as agent_run
 from jobsearch.ats.detect import detect_ats
+from jobsearch.cleanup import cleanup_unstarred
 from jobsearch.config import load_config
 from jobsearch.db import connect, init_db
 from jobsearch.env import load_env
@@ -102,6 +105,20 @@ def cmd_quota(args: argparse.Namespace) -> None:
     print(f"{used}/{config['llm']['daily_quota_cap']} LLM calls used today ({today})")
 
 
+def cmd_cleanup(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    conn = connect(config["storage"]["db_path"])
+    deleted = cleanup_unstarred(conn, config["storage"]["job_retention_days"])
+    conn.close()
+    print(f"Deleted {deleted} unstarred job(s) older than {config['storage']['job_retention_days']} days")
+
+
+def cmd_serve(args: argparse.Namespace) -> None:
+    import uvicorn
+
+    uvicorn.run("jobsearch.web.app:app", host=args.host, port=args.port, reload=args.reload)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jobsearch", description="Personal job search tool")
     parser.add_argument(
@@ -134,6 +151,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     quota_cmd = subparsers.add_parser("quota", help="Show today's LLM call usage")
     quota_cmd.set_defaults(func=cmd_quota)
+
+    cleanup_cmd = subparsers.add_parser("cleanup", help="Delete unstarred jobs older than the retention window")
+    cleanup_cmd.set_defaults(func=cmd_cleanup)
+
+    serve_cmd = subparsers.add_parser("serve", help="Run the dashboard web server")
+    serve_cmd.add_argument("--host", default="127.0.0.1")
+    serve_cmd.add_argument("--port", type=int, default=8000)
+    serve_cmd.add_argument("--reload", action="store_true", help="Auto-reload on code changes (dev only)")
+    serve_cmd.set_defaults(func=cmd_serve)
 
     return parser
 

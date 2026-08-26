@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Saved Sources' if source_kind == 'saved' else 'Open Web' }} - Job Search{% endblock %}
+{% block content %}
+<input
+  class="search-box"
+  type="search"
+  name="q"
+  value="{{ q }}"
+  placeholder="Search title, company, description..."
+  hx-get="/jobs/{{ source_kind }}/list"
+  hx-trigger="input changed delay:300ms, search"
+  hx-target="#job-list"
+  hx-include="this"
+>
+<div id="job-list">
+  {% include "_job_list.html" %}
+</div>
+{% endblock %}

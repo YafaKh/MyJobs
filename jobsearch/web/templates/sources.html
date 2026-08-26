@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Source Health - Job Search{% endblock %}
+{% block content %}
+{% if sources %}
+<table>
+<thead>
+  <tr><th>Name</th><th>ATS</th><th>Status</th><th>Last success</th><th>Last error</th></tr>
+</thead>
+<tbody>
+{% for s in sources %}
+  <tr class="{{ 'unhealthy' if s.consecutive_failures > 0 else '' }}">
+    <td>{{ s.name }}</td>
+    <td>{{ s.ats_type or 'undetected' }}</td>
+    <td>
+      {{ 'active' if s.is_active else 'inactive' }}
+      {% if s.consecutive_failures > 0 %} &mdash; {{ s.consecutive_failures }} consecutive failures{% endif %}
+    </td>
+    <td>{{ s.last_success_at or 'never' }}</td>
+    <td>{{ s.last_error or '' }}</td>
+  </tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p class="empty">No sources yet. Add one with: python -m jobsearch.cli add-source --name "..." --url "..."</p>
+{% endif %}
+{% endblock %}

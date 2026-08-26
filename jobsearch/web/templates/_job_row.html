@@ -1,0 +1,41 @@
+<div class="job" id="job-{{ job.id }}">
+  <h3>{{ job.title }}{% if job.starred %} <span class="starred">&#9733;</span>{% endif %}</h3>
+  <div class="meta">
+    {{ job.company }} &middot; <a href="{{ job.url }}" target="_blank" rel="noopener">listing</a>
+    &middot; first seen {{ job.first_seen_at }}
+  </div>
+  <div class="fields">
+    <span>arrangement: {{ job.arrangement or '?' }}</span>
+    <span>location: {{ job.location_requirement or '?' }}</span>
+    <span>auth: {{ job.work_authorization or '?' }}</span>
+    <span>sponsorship: {{ job.sponsorship or '?' }}</span>
+    <span>tz: {{ job.timezone_overlap or '?' }}</span>
+    <span>score: {{ '%.0f'|format(job.score) if job.score is not none else '?' }}</span>
+  </div>
+  {% if job.eligibility_reason %}<p class="reason">{{ job.eligibility_reason }}</p>{% endif %}
+  <div class="actions">
+    <button hx-post="/jobs/{{ job.id }}/star" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+      {{ 'Unstar' if job.starred else 'Star' }}
+    </button>
+    <button hx-post="/jobs/{{ job.id }}/hide" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+            hx-confirm="Hide this job? It won't show up in search again.">
+      Hide
+    </button>
+    <details>
+      <summary>Correct a field</summary>
+      <form class="correct-form" hx-post="/jobs/{{ job.id }}/correct" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+        <select name="field_name">
+          <option value="location_requirement">location_requirement</option>
+          <option value="work_authorization">work_authorization</option>
+          <option value="arrangement">arrangement</option>
+          <option value="sponsorship">sponsorship</option>
+          <option value="timezone_overlap">timezone_overlap</option>
+          <option value="eligible_for_me">eligible_for_me</option>
+          <option value="reason">reason</option>
+        </select>
+        <input type="text" name="value" placeholder="correct value" required>
+        <button type="submit">Save</button>
+      </form>
+    </details>
+  </div>
+</div>

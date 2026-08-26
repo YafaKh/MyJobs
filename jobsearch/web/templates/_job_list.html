@@ -1,0 +1,5 @@
+{% for job in jobs %}
+  {% include "_job_row.html" %}
+{% else %}
+  <p class="empty">No jobs match.</p>
+{% endfor %}
